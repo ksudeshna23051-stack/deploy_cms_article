@@ -14,7 +14,7 @@ import msal
 import uuid
 import logging
 
-# ✅ PRO LOGGING FORMAT (IMPORTANT 🔥)
+# ✅ ROOT LOGGER FORMAT (IMPORTANT 🔥)
 logging.basicConfig(
     level=logging.INFO,
     format='[%(levelname)s] %(name)s: %(message)s'
@@ -27,7 +27,7 @@ imageSourceUrl = 'https://' + app.config['BLOB_ACCOUNT'] + '.blob.core.windows.n
 @app.route('/home')
 @login_required
 def home():
-    app.logger.info(f"Home opened by user: {current_user.username}")
+    logging.info(f"Home opened by user: {current_user.username}")
 
     user = User.query.filter_by(username=current_user.username).first_or_404()
     posts = Post.query.all()
@@ -42,11 +42,11 @@ def home():
 @app.route('/new_post', methods=['GET', 'POST'])
 @login_required
 def new_post():
-    app.logger.info("New post page opened")
+    logging.info("New post page opened")
 
     form = PostForm(request.form)
     if form.validate_on_submit():
-        app.logger.info(f"New post created by user: {current_user.username}")
+        logging.info(f"New post created by user: {current_user.username}")
 
         post = Post()
         post.save_changes(form, request.files['image_path'], current_user.id, new=True)
@@ -63,13 +63,13 @@ def new_post():
 @app.route('/post/<int:id>', methods=['GET', 'POST'])
 @login_required
 def post(id):
-    app.logger.info(f"Editing post ID: {id} by user: {current_user.username}")
+    logging.info(f"Editing post ID: {id} by user: {current_user.username}")
 
     post = Post.query.get(int(id))
     form = PostForm(formdata=request.form, obj=post)
 
     if form.validate_on_submit():
-        app.logger.info(f"Post updated ID: {id} by user: {current_user.username}")
+        logging.info(f"Post updated ID: {id} by user: {current_user.username}")
 
         post.save_changes(form, request.files['image_path'], current_user.id)
         return redirect(url_for('home'))
@@ -84,7 +84,7 @@ def post(id):
 # -------------------- LOGIN --------------------
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    app.logger.info("Login page accessed")
+    logging.info("Login page accessed")
 
     if current_user.is_authenticated:
         return redirect(url_for('home'))
@@ -92,16 +92,18 @@ def login():
     form = LoginForm()
 
     if form.validate_on_submit():
-        app.logger.info(f"Login attempt: {form.username.data}")
+        logging.info(f"Login attempt: {form.username.data}")
 
         user = User.query.filter_by(username=form.username.data).first()
 
+        # ❌ Invalid login
         if user is None or not user.check_password(form.password.data):
-            app.logger.error("Login failed ❌")
+            logging.error("Invalid username or password")
             flash('Invalid username or password')
             return redirect(url_for('login'))
 
-        app.logger.info("Login success ✅")
+        # ✅ Successful login
+        logging.info("User login successful")
 
         login_user(user, remember=form.remember_me.data)
         next_page = request.args.get('next')
@@ -119,24 +121,24 @@ def login():
 # -------------------- AZURE AUTH --------------------
 @app.route(Config.REDIRECT_PATH)
 def authorized():
-    app.logger.info("Azure AD redirect hit")
+    logging.info("Azure AD redirect hit")
 
     if request.args.get('state') != session.get("state"):
-        app.logger.error("State mismatch in Azure login")
+        logging.error("State mismatch in Azure login")
         return redirect(url_for("home"))
 
     if "error" in request.args:
-        app.logger.error("Azure login error")
+        logging.error("Azure login error")
         return render_template("auth_error.html", result=request.args)
 
     if request.args.get('code'):
-        app.logger.info("Azure login success")
+        logging.info("Azure login success")
 
         cache = _load_cache()
         result = None
 
         if result and "error" in result:
-            app.logger.error("Token acquisition failed")
+            logging.error("Token acquisition failed")
             return render_template("auth_error.html", result=result)
 
         session["user"] = result.get("id_token_claims") if result else None
@@ -151,7 +153,7 @@ def authorized():
 # -------------------- LOGOUT --------------------
 @app.route('/logout')
 def logout():
-    app.logger.info(f"User logged out: {current_user.username}")
+    logging.info(f"User logged out: {current_user.username}")
 
     logout_user()
 
@@ -166,17 +168,17 @@ def logout():
 
 # -------------------- MSAL HELPERS --------------------
 def _load_cache():
-    app.logger.info("Loading MSAL cache")
+    logging.info("Loading MSAL cache")
     return None
 
 def _save_cache(cache):
-    app.logger.info("Saving MSAL cache")
+    logging.info("Saving MSAL cache")
     pass
 
 def _build_msal_app(cache=None, authority=None):
-    app.logger.info("Building MSAL app")
+    logging.info("Building MSAL app")
     return None
 
 def _build_auth_url(authority=None, scopes=None, state=None):
-    app.logger.info("Building auth URL")
+    logging.info("Building auth URL")
     return None
